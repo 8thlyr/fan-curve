@@ -12,15 +12,11 @@ jobs:
       matrix:
         include:
           - architecture: x86_64
-            environment: linux
+            runner: ubuntu-latest
           - architecture: arm64
-            environment: arm
-    runs-on:
-      - codebuild-fan-curve-release-runner-${{ github.run_id }}-${{ github.run_attempt }}
-      - image:custom-${{ matrix.environment }}-swift:6.1-jammy
-      - instance-size:small
-      - buildspec-override:true
-      - core-${{ matrix.architecture }}
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container: swift:6.1-jammy
     steps:
       - uses: actions/checkout@v4
         with:
