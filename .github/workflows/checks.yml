@@ -37,5 +37,7 @@ jobs:
       - run: swift build -c release --triple x86_64-apple-macosx13.0
       - if: ${{ runner.environment == 'github-hosted' }}
         run: sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-      - run: arch -x86_64 .build/out/Products/Release/FanCurveCheck
-      - run: arch -x86_64 .build/out/Products/Release/FanCurveAppCheck
+      - run: |
+          bin_path=$(swift build -c release --triple x86_64-apple-macosx13.0 --show-bin-path)
+          arch -x86_64 "$bin_path/FanCurveCheck"
+          arch -x86_64 "$bin_path/FanCurveAppCheck"
