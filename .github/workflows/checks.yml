@@ -22,6 +22,8 @@ jobs:
         with:
           submodules: recursive
       - run: swift --version
+      - run: swift build --target FanCurveCore
+      - run: swift test
       - run: swift run FanCurveCheck
 
   app-actions:

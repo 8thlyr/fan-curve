@@ -2,6 +2,38 @@
 
 Fan Curve is a small macOS menu-bar app that adjusts fan speed from CPU temperature. It gives you a clear fan curve, live fan readings, and safe automatic recovery without a full hardware dashboard.
 
+![fan-curve-curve printing the fan percentage, scene ceiling and RPM the app's own curve engine resolves at each temperature, then refusing an invalid curve](docs/demo.gif)
+
+## Why
+
+Fan control apps tend to be either whole hardware dashboards, with every sensor and voltage rail on screen, or a single "max fans" switch. Neither is what you want on a laptop you work on: you want the fans quiet at 45 C and ramp hard before the chip throttles, and you want to know the app will hand the fans back the moment anything goes wrong.
+
+- **A curve, not a switch.** You set points on a temperature-to-percentage line, so "quiet until 60, then ramp to 90%" is one curve you can see. Scenes (Balanced, Quiet, Cooling) each carry their own curve, so switching to Quiet on battery is one click, not a redraw.
+- **The safety rules are structural, not advice.** The helper clamps every target to the fan's own reported minimum and maximum, gives the fans back on quit, sleep, a lost heartbeat, or serious thermal pressure, and the app refuses to start control if the temperature or fan readings look wrong. See [Safety](#safety).
+- **It tells you why it stopped.** Every control loss, with the heartbeat, fan modes, targets and thermal state at that moment, lands in a local log you can paste into an issue. That is the difference between "it didn't work" and a bug report someone can act on.
+
+## Quickstart
+
+```sh
+brew install --cask jonathancostin/tap/fan-curve
+fan-curve-helper install     # asks for your password once
+open -a "Fan Curve"
+```
+
+Then: leave the default curve for the first test, turn on **Use fan curve**, check the menu says **Active** and each fan shows a live speed, and turn it off again to confirm the menu returns to **Automatic**. The full first-run walkthrough is under [First use](#first-use).
+
+Not on Homebrew? [Build from source](#build-from-source) instead.
+
+## How it works
+
+Three pieces, one small program each:
+
+1. **The app** (`FanCurveApp`, menu bar). Polls CPU temperature, evaluates the curve, applies the scene budget and smoothing, and writes a control state file. It never touches SMC hardware itself, so an unprivileged GUI process cannot leave the fans in a bad state.
+2. **The helper** (`FanCurveHelper`, a root launchd job). Reads that state file, decides whether the request is still current (heartbeat, owner uid, the fan bounds the Mac actually reports), and only then sets fan mode and target RPM through the SMC. It writes back an acknowledgement the app checks before it shows **Active**. If the heartbeat goes stale it restores automatic control on its own, with no app involved.
+3. **`fan-curve-curve`** (the curve engine on the command line). The same `FanCurveCore` code the app uses, with no GUI and no hardware: give it points, a scene ceiling and a fan RPM range and it prints what the app would ask for at each temperature. That is what the demo above records, and it is how the curve math is testable on a machine that isn't a Mac.
+
+The order matters. The app asks, the helper verifies and acts, and the curve engine explains. Nothing in the path trusts a value it did not just read, and every part has a defined behavior when its input looks wrong: no curve control, no fan change, or an exit code and a message.
+
 ## Status
 
 - Active. Distributed as a Homebrew cask from [jonathancostin/homebrew-tap](https://github.com/jonathancostin/homebrew-tap).
@@ -105,6 +137,31 @@ fan-curve-helper uninstall
 brew uninstall --cask fan-curve
 ```
 
+## Curve engine on the command line
+
+`fan-curve-curve` builds on macOS and Linux (it needs only `FanCurveCore`, no IOKit), so you can
+check a curve without the app or a Mac:
+
+```sh
+swift build -c release --product fan-curve-curve
+./.build/release/fan-curve-curve --points 40:10,60:50,80:90 --ceiling 45 --step 10
+```
+
+```
+ temp(C)  curve%  budget%    rpm  note
+      40      10       10   2600
+      50      30       30   3800
+      60      50       45   4700  capped
+      70      70       45   4700  capped
+      80      90       45   4700  capped
+
+floor 10% at 40C, ceiling 90% at 80C, points valid: yes
+```
+
+`--range MIN:MAX` sets the fan RPM span (default `2000:8000`, the two-fan M5 Pro's). An invalid
+curve prints `invalid curve:` and exits 2 rather than guessing, which is what makes it usable in a
+test or a pre-commit check.
+
 ## Build from source
 
 The SMC code lives in the `Vendor/Stats` Git submodule, so fetch it with the clone:
@@ -128,7 +185,8 @@ Requires Swift 6.1 (SwiftPM) and macOS 13 or later.
 
 ## Layout
 
-- `Package.swift`: SwiftPM manifest. Library targets `StatsSMC` (IOKit SMC access), `FanCurveCore`, `FanCurveUI`; executables `FanCurveApp`, `FanCurveHelper`, `FanCurveProbe`, `FanCurveCheck`, `FanCurveAppCheck`.
+- `Package.swift`: SwiftPM manifest. Library targets `StatsSMC` (IOKit SMC access), `FanCurveCore`, `FanCurveUI`; executables `FanCurveApp`, `FanCurveHelper`, `FanCurveProbe`, `FanCurveCheck`, `FanCurveAppCheck`, `fan-curve-curve`. Everything that needs IOKit or AppKit sits inside `#if os(macOS)`, so `FanCurveCore`, its tests and `fan-curve-curve` build on Linux.
+- `Tests/FanCurveCoreTests/`: the Swift Testing suite (`swift test`).
 - `Sources/`: one directory per target.
 - `Resources/`: app `Info.plist` and the helper's launchd plist `com.jonathan.FanCurveHelper.plist`.
 - `scripts/`: `build.sh` (builds and ad-hoc signs `build/FanCurve.app`), `install-helper.sh`, `install-local.sh`.

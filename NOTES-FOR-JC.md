@@ -1,0 +1,7 @@
+# Notes for JC: fan-curve
+
+- **The demo is a CLI tool I added, not a screenshot of the app.** No Mac is on the tailnet, so there was nothing honest to film in the menu bar. `fan-curve-curve` runs the app's own `FanCurveCore` (same interpolation, same scene ceiling, same RPM mapping) and prints what it would ask the fans for at each temperature, plus `invalid curve:` and exit 2 on bad points. If you ever want menu-bar screenshots, this is the one thing a Mac is still needed for.
+- **`swift test` exists now, for real.** The 623-line `FanCurveCheck` script was 158 `precondition`s in a top-level script, so CI ran them but you couldn't target one. They're 20 Swift Testing cases in `Tests/FanCurveCoreTests/`, same assertions and same `#if arch` branches, and `swift test` runs on the Linux CI job. `FanCurveCheck` stays for the release workflow.
+- **The Package.swift change is the one thing worth a Mac check.** Targets that need IOKit/AppKit moved inside `#if os(macOS)` so the Linux job can build the core. I verified the macOS manifest is target-for-target and product-for-product identical to before (only the new test target and `fan-curve-curve` are added) by diffing `swift package dump-package` with the condition forced true, but no Mac has run it. Everything else here is verified by execution.
+
+**Visibility:** `8thlyr/fan-curve` is **public** (one of the three that stayed public after 11/10). Merging this pushes to main, which cuts a release and bumps the Homebrew cask automatically.
