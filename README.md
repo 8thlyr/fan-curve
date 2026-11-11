@@ -110,7 +110,7 @@ brew uninstall --cask fan-curve
 The SMC code lives in the `Vendor/Stats` Git submodule, so fetch it with the clone:
 
 ```sh
-git clone --recurse-submodules https://github.com/jonathancostin/fan-curve.git
+git clone --recurse-submodules https://github.com/8thlyr/fan-curve.git
 cd fan-curve
 ```
 
