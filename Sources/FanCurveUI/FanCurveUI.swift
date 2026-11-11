@@ -993,7 +993,7 @@ package final class MainViewController: NSViewController {
     @objc private func installHelper() { controller.installHelper() }
     @objc private func copySupportReport() { controller.copySupportReport() }
     @objc private func changeHistoryRange() {
-        historyGraph.duration = [15, 60, 6 * 60, 24 * 60][historyRange.selectedSegment] * 60
+        historyGraph.duration = TimeInterval([15, 60, 6 * 60, 24 * 60][historyRange.selectedSegment] * 60)
     }
     @objc private func toggleFanHistory() {
         historyGraph.showsFanOutput = fanHistoryToggle.state == .on
